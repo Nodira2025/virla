@@ -64,7 +64,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectEvent }) => 
                 onClick={() => setSelectedSpaceFilter('ALL')}
                 className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
                   selectedSpaceFilter === 'ALL'
-                    ? 'bg-indigo-600 text-white shadow-xs font-semibold'
+                    ? 'bg-[#004a7f] text-white shadow-xs font-semibold'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
               >
@@ -79,12 +79,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectEvent }) => 
                     onClick={() => setSelectedSpaceFilter(space.id)}
                     className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
                       isSelected
-                        ? 'bg-slate-900 text-white shadow-xs font-semibold'
+                        ? 'bg-[#002f52] text-white shadow-xs font-semibold'
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                     }`}
                   >
                     <span>{space.shortName}</span>
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-slate-700 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'}`}>
                       {count}
                     </span>
                   </button>
@@ -100,7 +100,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectEvent }) => 
               placeholder="Buscar por actividad o responsable..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-indigo-500 bg-slate-50"
+              className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-[#007F8C] bg-white"
             />
           </div>
         </div>
@@ -160,7 +160,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectEvent }) => 
               <div
                 key={event.id}
                 onClick={() => onSelectEvent(event)}
-                className={`bg-white rounded-xl border border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer overflow-hidden flex flex-col justify-between ${
+                className={`bg-white rounded-xl border border-slate-200 hover:border-[#007F8C] hover:shadow-md transition-all cursor-pointer overflow-hidden flex flex-col justify-between ${
                   event.audit.isExtensionAgreement && !event.audit.acknowledgedByDirector
                     ? 'ring-2 ring-amber-400'
                     : ''
@@ -204,7 +204,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectEvent }) => 
 
                     {/* Fecha y Horario */}
                     <div className="flex items-center gap-1.5 text-xs text-slate-600">
-                      <Clock className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                      <Clock className="w-3.5 h-3.5 text-[#007F8C] shrink-0" />
                       <span className="font-semibold text-slate-900 capitalize">{start.date}</span>
                       <span>·</span>
                       <span>{start.time} a {end.time} hs</span>
@@ -266,7 +266,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectEvent }) => 
                       e.stopPropagation();
                       onSelectEvent(event);
                     }}
-                    className="text-indigo-600 hover:text-indigo-900 font-semibold flex items-center gap-1"
+                    className="text-[#004a7f] hover:text-[#002f52] font-semibold flex items-center gap-1"
                   >
                     <Eye className="w-3.5 h-3.5" />
                     <span>Ver Ficha</span>

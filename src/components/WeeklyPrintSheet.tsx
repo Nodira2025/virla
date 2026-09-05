@@ -4,8 +4,7 @@ import { VIRLA_SPACES, CONTRACT_LABELS } from '../infrastructure/mockData';
 import { 
   Printer, 
   Send, 
-  CheckCircle2, 
-  Building2
+  CheckCircle2
 } from 'lucide-react';
 
 export const WeeklyPrintSheet: React.FC = () => {
@@ -77,8 +76,12 @@ export const WeeklyPrintSheet: React.FC = () => {
       <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-xs print:p-0 print:border-none print:shadow-none">
         {/* Encabezado Oficial Institucional */}
         <div className="border-b-2 border-slate-900 pb-4 mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Building2 className="w-8 h-8 text-slate-900" />
+          <div className="flex items-center gap-4">
+            <img 
+              src="/logo-virla.png" 
+              alt="Centro Cultural Virla" 
+              className="h-12 w-auto object-contain" 
+            />
             <div>
               <h1 className="text-xl font-black tracking-tight text-slate-900 uppercase">
                 Centro Cultural Eugenio Flavio Virla

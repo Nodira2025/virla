@@ -3,7 +3,6 @@ import { useVirla } from '../context/VirlaContext';
 import { ROLE_CONFIGS } from '../infrastructure/mockData';
 import type { UserRole } from '../domain/types';
 import { 
-  Building2, 
   CalendarDays, 
   Megaphone, 
   Palette, 
@@ -12,7 +11,8 @@ import {
   BellRing, 
   PlusCircle, 
   RotateCcw,
-  UserCheck
+  UserCheck,
+  ExternalLink
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -30,28 +30,54 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenN
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs no-print">
-      {/* Barra superior de identidad y rol */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo y título */}
+      {/* 1. Barra Institucional Superior UNT */}
+      <div className="bg-[#002f52] text-white text-[11px] py-1.5 px-4 sm:px-6 lg:px-8 font-medium">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-indigo-900 flex items-center justify-center text-white shadow-sm font-bold tracking-wider">
-              <Building2 className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-xl tracking-tight text-slate-900">VIRLA</span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-semibold border border-blue-200">
-                  UNT Extensión
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 font-medium">Centro Cultural Eugenio Flavio Virla</p>
-            </div>
+            <span className="font-bold tracking-wide">UNIVERSIDAD NACIONAL DE TUCUMÁN</span>
+            <span className="text-white/40 hidden sm:inline">|</span>
+            <span className="text-white/80 hidden sm:inline">Secretaría de Extensión Universitaria</span>
           </div>
 
-          {/* Selector de Rol & Acciones Rápidas */}
           <div className="flex items-center gap-4">
-            {/* Notificación de Extensión para Dirección */}
+            <a 
+              href="https://www.unt.edu.ar" 
+              target="_blank" 
+              rel="noreferrer" 
+              className="text-white/80 hover:text-white flex items-center gap-1 transition-colors"
+            >
+              <span>unt.edu.ar</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Cabecera Principal con Logo Oficial del Virla */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-20">
+          {/* Logo Oficial Virla */}
+          <div className="flex items-center gap-4">
+            <a href="/" className="flex items-center gap-3 group">
+              <img 
+                src="/logo-virla.png" 
+                alt="Centro Cultural Virla - UNT" 
+                className="h-14 w-auto object-contain transition-transform group-hover:scale-102"
+              />
+              <div className="hidden sm:block border-l border-slate-200 pl-3">
+                <span className="text-[10px] font-bold tracking-widest text-[#007F8C] uppercase block">
+                  Sistema de Agenda & Salas
+                </span>
+                <span className="text-xs text-slate-500 font-semibold">
+                  Gestión Cultural Universitaria
+                </span>
+              </div>
+            </a>
+          </div>
+
+          {/* Selector de Rol y Acciones */}
+          <div className="flex items-center gap-3">
+            {/* Notificaciones Extensión vs Dirección */}
             <button
               onClick={() => setActiveTab('extension-alerts')}
               className={`relative flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
@@ -62,7 +88,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenN
               title="Alertas de fechas acordadas por Extensión (Marcelo Mirkin)"
             >
               <BellRing className="w-4 h-4 text-amber-700" />
-              <span>Extensión vs Dirección</span>
+              <span className="hidden md:inline">Extensión vs Dirección</span>
               {extensionPendingCount > 0 && (
                 <span className="bg-amber-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
                   {extensionPendingCount}
@@ -71,16 +97,14 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenN
             </button>
 
             {/* Selector de Rol Activo */}
-            <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
-              <UserCheck className="w-4 h-4 text-slate-500 ml-1.5" />
-              <label htmlFor="role-select" className="text-xs font-medium text-slate-500 hidden md:inline">
-                Rol activo:
-              </label>
+            <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+              <UserCheck className="w-4 h-4 text-[#004a7f] ml-1" />
               <select
                 id="role-select"
                 value={currentRole}
                 onChange={handleRoleChange}
-                className="bg-white text-xs font-semibold text-slate-800 rounded-lg px-2.5 py-1.5 border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 shadow-2xs"
+                aria-label="Seleccionar rol de usuario activo"
+                className="bg-white text-xs font-semibold text-slate-800 rounded-lg px-2.5 py-1.5 border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-[#007F8C] shadow-2xs"
               >
                 {Object.values(ROLE_CONFIGS).map(role => (
                   <option key={role.id} value={role.id}>
@@ -90,19 +114,19 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenN
               </select>
             </div>
 
-            {/* Botón Nuevo Evento */}
+            {/* Botón Nueva Actividad */}
             <button
               onClick={onOpenNewEvent}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow-sm transition-colors"
+              className="flex items-center gap-2 bg-[#004a7f] hover:bg-[#003865] text-white text-xs font-bold px-3.5 py-2 rounded-lg shadow-sm transition-colors"
             >
               <PlusCircle className="w-4 h-4" />
               <span className="hidden sm:inline">Nueva Actividad</span>
             </button>
 
-            {/* Reiniciar Demo */}
+            {/* Botón Reiniciar Demo */}
             <button
               onClick={resetDemoData}
-              title="Reiniciar datos de la demo a valores por defecto"
+              title="Reiniciar datos de demo a valores iniciales"
               className="p-2 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
             >
               <RotateCcw className="w-4 h-4" />
@@ -111,79 +135,88 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenN
         </div>
       </div>
 
-      {/* Barra de pestañas por área */}
-      <div className="bg-slate-50 border-t border-slate-200">
+      {/* 3. Franja Multicolor Institucional UNT (Firma visual de unt.edu.ar) */}
+      <div className="grid grid-cols-5 h-1 w-full">
+        <div className="bg-[#2A87AB]" />
+        <div className="bg-[#47A2CC]" />
+        <div className="bg-[#62BCFF]" />
+        <div className="bg-[#3F82BC]" />
+        <div className="bg-[#295B88]" />
+      </div>
+
+      {/* 4. Barra de Pestañas de Navegación por Módulo */}
+      <div className="bg-[#f8fafc] border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex space-x-1 sm:space-x-4 overflow-x-auto py-2 scrollbar-none text-xs font-medium">
+          <nav className="flex space-x-1 sm:space-x-3 overflow-x-auto py-2 scrollbar-none text-xs font-semibold">
             <button
               onClick={() => setActiveTab('agenda')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-md whitespace-nowrap transition-colors ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg whitespace-nowrap transition-all ${
                 activeTab === 'agenda' 
-                  ? 'bg-white text-indigo-700 shadow-2xs font-semibold border border-slate-200' 
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                  ? 'bg-[#004a7f] text-white shadow-xs' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
-              <CalendarDays className="w-4 h-4 text-indigo-600" />
+              <CalendarDays className="w-4 h-4" />
               Agenda General
             </button>
 
             <button
               onClick={() => setActiveTab('comunicacion')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-md whitespace-nowrap transition-colors ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg whitespace-nowrap transition-all ${
                 activeTab === 'comunicacion' 
-                  ? 'bg-white text-pink-700 shadow-2xs font-semibold border border-slate-200' 
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                  ? 'bg-[#007F8C] text-white shadow-xs' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
-              <Megaphone className="w-4 h-4 text-pink-600" />
+              <Megaphone className="w-4 h-4" />
               Prensa & Comunicación (WhatsApp)
             </button>
 
             <button
               onClick={() => setActiveTab('muestras')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-md whitespace-nowrap transition-colors ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg whitespace-nowrap transition-all ${
                 activeTab === 'muestras' 
-                  ? 'bg-white text-indigo-700 shadow-2xs font-semibold border border-slate-200' 
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                  ? 'bg-[#295B88] text-white shadow-xs' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
-              <Palette className="w-4 h-4 text-indigo-600" />
+              <Palette className="w-4 h-4" />
               Subsuelo Muestras (Montajes)
             </button>
 
             <button
               onClick={() => setActiveTab('boleteria')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-md whitespace-nowrap transition-colors ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg whitespace-nowrap transition-all ${
                 activeTab === 'boleteria' 
-                  ? 'bg-white text-teal-700 shadow-2xs font-semibold border border-slate-200' 
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                  ? 'bg-[#3F82BC] text-white shadow-xs' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
-              <Ticket className="w-4 h-4 text-teal-600" />
+              <Ticket className="w-4 h-4" />
               Boletería & Web
             </button>
 
             <button
               onClick={() => setActiveTab('viernes')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-md whitespace-nowrap transition-colors ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg whitespace-nowrap transition-all ${
                 activeTab === 'viernes' 
-                  ? 'bg-white text-slate-800 shadow-2xs font-semibold border border-slate-200' 
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                  ? 'bg-slate-800 text-white shadow-xs' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
-              <Printer className="w-4 h-4 text-slate-600" />
-              Programación de los Viernes (Imprimir)
+              <Printer className="w-4 h-4" />
+              Programación de los Viernes
             </button>
 
             <button
               onClick={() => setActiveTab('extension-alerts')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-md whitespace-nowrap transition-colors ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg whitespace-nowrap transition-all ${
                 activeTab === 'extension-alerts' 
-                  ? 'bg-white text-amber-800 shadow-2xs font-semibold border border-slate-200' 
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                  ? 'bg-amber-800 text-white shadow-xs' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
-              <BellRing className="w-4 h-4 text-amber-600" />
+              <BellRing className="w-4 h-4" />
               Auditoría Extensión ({extensionPendingCount})
             </button>
           </nav>
