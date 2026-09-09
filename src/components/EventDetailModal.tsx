@@ -9,8 +9,11 @@ import {
   FileText, 
   Edit3, 
   Trash2, 
-  MessageCircle
+  MessageCircle,
+  ExternalLink,
+  AlertCircle
 } from 'lucide-react';
+import { isEntradanetUrl } from '../infrastructure/entradanet';
 
 interface EventDetailModalProps {
   event: EventItem | null;
@@ -182,9 +185,27 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, onClo
               )}
               <p className="text-slate-500 text-[11px]">{event.ticketing.saleConditions}</p>
               <div className="pt-1">
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${event.ticketing.isPublishedOnWeb ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-600'}`}>
-                  {event.ticketing.isPublishedOnWeb ? 'Publicado en Web' : 'No publicado en Web'}
-                </span>
+                {event.ticketing.isPublishedOnWeb && isEntradanetUrl(event.ticketing.ticketLink) ? (
+                  <a
+                    href={event.ticketing.ticketLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Ver esta actividad en EntradaNet (se abre en otra pestaña)"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#004a7f] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#003865]"
+                  >
+                    Ver en EntradaNet
+                    <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                  </a>
+                ) : event.ticketing.isPublishedOnWeb ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                    <AlertCircle className="h-3 w-3" aria-hidden="true" />
+                    Publicado sin enlace oficial
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                    Pendiente de publicar en EntradaNet
+                  </span>
+                )}
               </div>
             </div>
           </div>

@@ -12,8 +12,10 @@ import {
   PlusCircle, 
   RotateCcw,
   UserCheck,
-  ExternalLink
+  ExternalLink,
+  Globe2
 } from 'lucide-react';
+import { ENTRADANET_BASE_URL } from '../infrastructure/entradanet';
 
 interface NavbarProps {
   activeTab: string;
@@ -34,17 +36,30 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenN
       <div className="bg-[#002f52] text-white text-[11px] py-1.5 px-4 sm:px-6 lg:px-8 font-medium">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="font-bold tracking-wide">UNIVERSIDAD NACIONAL DE TUCUMÁN</span>
+            <span className="hidden font-bold tracking-wide sm:inline">UNIVERSIDAD NACIONAL DE TUCUMÁN</span>
+            <span className="font-bold tracking-wide sm:hidden">UNT</span>
             <span className="text-white/40 hidden sm:inline">|</span>
             <span className="text-white/80 hidden sm:inline">Secretaría de Extensión Universitaria</span>
           </div>
 
           <div className="flex items-center gap-4">
+            <a
+              href={ENTRADANET_BASE_URL}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Abrir la agenda pública y entradas en EntradaNet (se abre en otra pestaña)"
+              className="flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 font-bold text-white transition-colors hover:bg-white/20"
+            >
+              <Ticket className="h-3 w-3" aria-hidden="true" />
+              <span className="hidden sm:inline">Agenda pública y entradas</span>
+              <span className="sm:hidden">Entradas</span>
+              <ExternalLink className="h-3 w-3" aria-hidden="true" />
+            </a>
             <a 
               href="https://www.unt.edu.ar" 
               target="_blank" 
               rel="noreferrer" 
-              className="text-white/80 hover:text-white flex items-center gap-1 transition-colors"
+              className="hidden items-center gap-1 text-white/80 transition-colors hover:text-white md:flex"
             >
               <span>unt.edu.ar</span>
               <ExternalLink className="w-3 h-3" />
@@ -161,6 +176,18 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenN
             </button>
 
             <button
+              onClick={() => setActiveTab('entradanet')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg whitespace-nowrap transition-all ${
+                activeTab === 'entradanet'
+                  ? 'bg-[#061f35] text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <Globe2 className="w-4 h-4" />
+              Agenda pública · EntradaNet
+            </button>
+
+            <button
               onClick={() => setActiveTab('comunicacion')}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-lg whitespace-nowrap transition-all ${
                 activeTab === 'comunicacion' 
@@ -193,7 +220,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenN
               }`}
             >
               <Ticket className="w-4 h-4" />
-              Boletería & Web
+              Boletería & EntradaNet
             </button>
 
             <button

@@ -11,8 +11,10 @@ import {
   Filter, 
   AlertTriangle, 
   Eye, 
-  Phone
+  Phone,
+  ExternalLink
 } from 'lucide-react';
+import { isEntradanetUrl } from '../infrastructure/entradanet';
 
 interface CalendarViewProps {
   onSelectEvent: (event: EventItem) => void;
@@ -250,13 +252,26 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectEvent }) => 
                       </span>
                     )}
 
-                    {event.ticketing.isPublishedOnWeb ? (
-                      <span className="text-[10px] text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded font-medium" title="Publicado en web">
-                        ✓ Web
+                    {event.ticketing.isPublishedOnWeb && isEntradanetUrl(event.ticketing.ticketLink) ? (
+                      <a
+                        href={event.ticketing.ticketLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(clickEvent) => clickEvent.stopPropagation()}
+                        className="inline-flex items-center gap-1 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-800 hover:bg-blue-200"
+                        title="Ver publicación en EntradaNet"
+                        aria-label={`Ver ${event.title} en EntradaNet (se abre en otra pestaña)`}
+                      >
+                        ✓ EntradaNet
+                        <ExternalLink className="h-2.5 w-2.5" aria-hidden="true" />
+                      </a>
+                    ) : event.ticketing.isPublishedOnWeb ? (
+                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800" title="Publicado sin enlace de EntradaNet">
+                        ! Falta enlace
                       </span>
                     ) : (
-                      <span className="text-[10px] text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded font-medium" title="No publicado en web">
-                        Web Pendiente
+                      <span className="text-[10px] text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded font-medium" title="No publicado en EntradaNet">
+                        EntradaNet pendiente
                       </span>
                     )}
                   </div>

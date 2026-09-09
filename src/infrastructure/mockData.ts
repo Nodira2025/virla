@@ -82,10 +82,10 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
   },
   BOLETERIA_WEB: {
     id: 'BOLETERIA_WEB',
-    title: 'Boletería & Web',
+    title: 'Boletería & EntradaNet',
     personName: 'Comodín de Entradas y Web',
     badge: 'bg-[#3F82BC] text-white',
-    description: 'Carga de tarifas, promociones, condiciones y publicación en la web institucional.',
+    description: 'Carga de tarifas, promociones y enlaces de publicación en la agenda oficial de EntradaNet.',
   },
   RECEPCION: {
     id: 'RECEPCION',
@@ -201,7 +201,7 @@ export const INITIAL_EVENTS: EventItem[] = [
       priceStudentDiscount: 6000,
       saleConditions: 'Venta anticipada por Boletería y web del Virla. 10% descuento jubilados.',
       isPublishedOnWeb: true,
-      ticketLink: 'https://virla.unt.edu.ar/entradas/la-leccion',
+      ticketLink: 'https://elvirla.entradanet.com/',
     },
     audit: {
       createdByRole: 'DIRECCION',
@@ -248,7 +248,7 @@ export const INITIAL_EVENTS: EventItem[] = [
       isFree: true,
       saleConditions: 'Entrada libre y gratuita. Visitas de lunes a viernes de 9 a 13 y 17 a 21 hs.',
       isPublishedOnWeb: true,
-      ticketLink: 'https://virla.unt.edu.ar/muestras/aconquija',
+      ticketLink: 'https://elvirla.entradanet.com/',
     },
     audit: {
       createdByRole: 'MUESTRAS',
@@ -372,6 +372,7 @@ export const INITIAL_EVENTS: EventItem[] = [
       isFree: true,
       saleConditions: 'Emisión radial y streaming web institucional.',
       isPublishedOnWeb: true,
+      ticketLink: 'https://elvirla.entradanet.com/',
     },
     audit: {
       createdByRole: 'DIRECCION',

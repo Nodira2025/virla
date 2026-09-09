@@ -10,6 +10,50 @@
   }
 }
 
+.entradanet-grid::before {
+  position: absolute;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  opacity: 0.26;
+  background-image:
+    radial-gradient(circle at 18% 10%, rgb(98 188 255 / 0.28), transparent 28%),
+    linear-gradient(120deg, transparent 42%, rgb(255 255 255 / 0.06) 42%, rgb(255 255 255 / 0.06) 43%, transparent 43%);
+  background-size: auto, 44px 44px;
+}
+
+.ticket-card::before,
+.ticket-card::after {
+  position: absolute;
+  left: calc(5rem - 0.45rem);
+  z-index: 2;
+  width: 0.9rem;
+  height: 0.9rem;
+  content: '';
+  border: 1px solid rgb(203 213 225);
+  border-radius: 999px;
+  background: white;
+}
+
+.ticket-card::before {
+  top: -0.48rem;
+}
+
+.ticket-card::after {
+  bottom: -0.48rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @media print {
   body {
     background: white !important;
