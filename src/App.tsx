@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AGENDA_CATEGORIES } from './domain/agendaCategories';
 import { CalendarCheck, CalendarDays, CheckCircle2, ExternalLink, MapPin, Phone } from 'lucide-react';
 import { PublicAgendaView } from './components/PublicAgendaView';
 import { ReservationForm } from './components/ReservationForm';
@@ -52,6 +53,7 @@ export default function App() {
       inputSchema: {
         type: 'object',
         properties: {
+          category: { type: 'string', enum: AGENDA_CATEGORIES.map((item) => item.id), description: 'Categoría de la actividad; independiente de si es función, ensayo o montaje.' },
           title: { type: 'string', description: 'Nombre de la actividad.' },
           activityType: { type: 'string', enum: RESERVATION_ACTIVITY_TYPES.map((item) => item.id) },
           description: { type: 'string', description: 'Descripción breve de la actividad y sus necesidades.' },

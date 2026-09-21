@@ -1,3 +1,5 @@
+import type { AgendaCategoryId } from './agendaCategories';
+
 export const RESERVABLE_SPACES = [
   { id: 'teatro-300', name: 'Sala de Teatro', detail: '300 butacas', capacity: 300 },
   { id: 'subsuelo-muestras', name: 'Sala de Muestras', detail: 'Subsuelo', capacity: 120 },
@@ -23,6 +25,7 @@ export const RESERVATION_ACTIVITY_TYPES = [
 export type ReservationActivityType = (typeof RESERVATION_ACTIVITY_TYPES)[number]['id'];
 
 export interface ReservationInput {
+  category?: AgendaCategoryId;
   title: string;
   activityType: ReservationActivityType;
   description: string;
@@ -39,6 +42,7 @@ export interface ReservationInput {
 }
 
 export interface PublicReservation {
+  category?: AgendaCategoryId;
   id: string;
   title: string;
   activityType: ReservationActivityType;

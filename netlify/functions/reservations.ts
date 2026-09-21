@@ -1,4 +1,5 @@
 import { getStore } from '@netlify/blobs';
+import { AGENDA_CATEGORIES, reservationCategory } from '../../src/domain/agendaCategories';
 import type { Context } from '@netlify/functions';
 import {
   getReservableSpace,
@@ -67,6 +68,7 @@ const listStoredReservations = async () => {
 const validateInput = (body: unknown) => {
   const raw = (body && typeof body === 'object' ? body : {}) as Partial<ReservationInput>;
   const input: ReservationInput = {
+    category: reservationCategory(cleanText(raw.category, 40), raw.activityType),
     title: cleanText(raw.title, 100),
     activityType: cleanText(raw.activityType, 40) as ReservationInput['activityType'],
     description: cleanText(raw.description, 500),
@@ -84,6 +86,9 @@ const validateInput = (body: unknown) => {
     website: cleanText(raw.website, 100),
   };
   const fields: Record<string, string> = {};
+  if (raw.category !== undefined && !AGENDA_CATEGORIES.some((item) => item.id === raw.category)) {
+    fields.category = 'Elegí una categoría de la lista.';
+  }
   const space = getReservableSpace(input.spaceId);
   const activityType = getReservationActivityType(input.activityType);
 
@@ -147,6 +152,7 @@ const createReservation = async (input: ReservationInput, spaceName: string, act
     const id = crypto.randomUUID();
     const reservation: StoredReservation = {
       id,
+      category: input.category,
       title: input.title,
       activityType: input.activityType,
       activityTypeLabel,

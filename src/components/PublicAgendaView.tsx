@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import type { PublicReservation } from '../domain/reservations';
+import { AGENDA_CATEGORIES, categoryFromTerms, categoryStyle, getAgendaCategory, reservationCategory, type AgendaCategoryId } from '../domain/agendaCategories';
 import { ENTRADANET_BASE_URL, ENTRADANET_EVENTS_API, isEntradanetUrl } from '../infrastructure/entradanet';
 import { fetchReservations } from '../services/reservations';
 
@@ -33,6 +34,7 @@ interface EntradanetApiEvent {
   event_end_date_time: string;
   event_location: string;
   _embedded?: {
+    'wp:term'?: Array<Array<{ name?: string; slug?: string; taxonomy?: string }>>;
     'wp:featuredmedia'?: Array<{
       source_url?: string;
       alt_text?: string;
@@ -44,6 +46,7 @@ interface EntradanetApiEvent {
 }
 
 interface PublicEvent {
+  category: AgendaCategoryId;
   id: string;
   link?: string;
   title: string;
@@ -200,6 +203,7 @@ const loadEntradanetEvents = async (signal: AbortSignal): Promise<PublicEvent[]>
         || cleanEventDescription(event.content?.rendered);
       return {
         id: `entradanet-${event.id}`,
+        category: categoryFromTerms(event._embedded?.['wp:term']?.flat() || []),
         link: event.link,
         title: cleanEventTitle(event.title.rendered),
         startsAt,
@@ -222,6 +226,7 @@ const reservationToEvent = (reservation: PublicReservation): PublicEvent | null 
   if (!startsAt || !endsAt) return null;
   return {
     id: `reservation-${reservation.id}`,
+    category: reservationCategory(reservation.category, reservation.activityType),
     title: reservation.title,
     startsAt,
     endsAt,
@@ -246,6 +251,7 @@ export const PublicAgendaView: React.FC<PublicAgendaViewProps> = ({ reservationR
   const [anchorDate, setAnchorDate] = useState(today);
   const [selectedDate, setSelectedDate] = useState(today);
   const [timePreset, setTimePreset] = useState<TimePreset>('all');
+  const [categoryFilter, setCategoryFilter] = useState<AgendaCategoryId | 'all'>('all');
   const [customStart, setCustomStart] = useState('08:00');
   const [customEnd, setCustomEnd] = useState('23:59');
   const [appliedCustomRange, setAppliedCustomRange] = useState<CustomTimeRange | null>(null);
@@ -295,13 +301,13 @@ export const PublicAgendaView: React.FC<PublicAgendaViewProps> = ({ reservationR
   }, [loadAgenda, refreshKey, reservationRefreshKey]);
 
   const visibleEvents = useMemo(
-    () => events.filter((event) => matchesTime(
+    () => events.filter((event) => (categoryFilter === 'all' || event.category === categoryFilter) && matchesTime(
       event,
       timePreset,
       appliedCustomRange?.start || '',
       appliedCustomRange?.end || '',
     )),
-    [appliedCustomRange, events, timePreset],
+    [appliedCustomRange, events, timePreset, categoryFilter],
   );
 
   const eventsByDate = useMemo(() => {
@@ -393,6 +399,7 @@ export const PublicAgendaView: React.FC<PublicAgendaViewProps> = ({ reservationR
   };
 
   const clearTimeFilter = () => {
+    setCategoryFilter('all');
     setTimePreset('all');
     setAppliedCustomRange(null);
     setCustomTimeError(null);
@@ -579,6 +586,25 @@ export const PublicAgendaView: React.FC<PublicAgendaViewProps> = ({ reservationR
         )}
       </div>
 
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+        <label className="block max-w-sm text-base font-bold text-slate-800">
+          Categoría
+          <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value as AgendaCategoryId | 'all')}
+            className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-base focus:ring-2 focus:ring-[#007F8C]">
+            <option value="all">Todas las categorías</option>
+            {AGENDA_CATEGORIES.map((category) => <option key={category.id} value={category.id}>{category.label}</option>)}
+          </select>
+        </label>
+        <ul aria-label="Colores de las categorías" className="mt-4 flex flex-wrap gap-2">
+          {AGENDA_CATEGORIES.map((category) => (
+            <li key={category.id} className="rounded-lg border-l-4 px-3 py-1.5 text-sm font-semibold" style={categoryStyle(category.id)}>{category.label}</li>
+          ))}
+        </ul>
+        {events.some((event) => event.source === 'entradanet' && event.category === 'unclassified') && (
+          <p className="mt-3 text-sm text-slate-600">Las actividades que EntradaNet envía sin categoría aparecen como “Sin clasificar”.</p>
+        )}
+      </div>
+
       <div className="flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-base leading-relaxed text-blue-950">
         <Info className="mt-0.5 h-5 w-5 shrink-0 text-[#004a7f]" aria-hidden="true" />
         <p><strong>Qué muestra esta agenda:</strong> las ocupaciones cargadas por el equipo y las actividades publicadas en EntradaNet. Como EntradaNet no informa la sala ni la duración, esas actividades deben confirmarse antes de ocupar un espacio.</p>
@@ -677,12 +703,12 @@ const EmptyPeriodState: React.FC<EmptyPeriodStateProps> = ({
     </span>
     <h2 className="mt-4 text-xl font-bold text-slate-950">
       {hasHiddenEvents
-        ? 'Hay actividades, pero no dentro del horario elegido'
+        ? 'Hay actividades, pero no coinciden con los filtros'
         : `No hay ocupaciones ni actividades ${mode === 'month' ? 'este mes' : 'esta semana'}`}
     </h2>
     <p className="mt-2 max-w-xl text-base leading-relaxed text-slate-600">
       {hasHiddenEvents
-        ? 'Podés volver a ver el día completo.'
+        ? 'Quitá los filtros de categoría y horario para ver todas las actividades.'
         : 'Podés cambiar de fecha con los botones Anterior y Siguiente.'}
     </p>
     {nextEvent && !hasHiddenEvents && (
@@ -697,7 +723,7 @@ const EmptyPeriodState: React.FC<EmptyPeriodStateProps> = ({
           onClick={onClearTimeFilter}
           className="min-h-11 rounded-xl bg-[#004a7f] px-5 text-base font-bold text-white hover:bg-[#003865]"
         >
-          Mostrar todo el día
+          Mostrar todas las actividades
         </button>
       )}
       {nextEvent && !hasHiddenEvents && (
@@ -773,15 +799,17 @@ const MonthCalendar: React.FC<MonthCalendarProps> = ({
               </span>
               {dayEvents.length > 0 && (
                 <>
-                  <span className="mt-1 flex h-7 w-7 items-center justify-center rounded-full bg-[#e1f2fb] text-sm font-bold text-[#004a7f] sm:hidden">{dayEvents.length}</span>
+                  <span className="mt-1 flex flex-wrap gap-1 sm:hidden">
+                    {Array.from(new Set(dayEvents.map((event) => event.category))).map((category) => (
+                      <span key={category} className="h-2 w-3 rounded-sm" style={{ backgroundColor: getAgendaCategory(category).color }} aria-hidden="true" />
+                    ))}
+                    <span className="w-full text-sm font-bold text-slate-700">{dayEvents.length}</span>
+                  </span>
                   <span className="mt-1 hidden space-y-1 sm:block">
                     {dayEvents.slice(0, 2).map((event) => (
-                      <span key={event.id} className={`block truncate rounded-md px-1.5 py-1 text-xs font-bold ${
-                        event.source === 'reservation'
-                          ? 'bg-amber-100 text-amber-950'
-                          : 'bg-[#e1f2fb] text-[#003865]'
-                      }`}>
+                      <span key={event.id} style={categoryStyle(event.category)} className="block truncate rounded-md border-l-4 px-1.5 py-1 text-xs font-bold" title={`${getAgendaCategory(event.category).label} · ${event.title}`}>
                         {event.startsAt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} · {event.title}
+                        <span className="block truncate font-normal">{getAgendaCategory(event.category).label}</span>
                       </span>
                     ))}
                     {dayEvents.length > 2 && <span className="block px-1 text-xs font-bold text-slate-500">+ {dayEvents.length - 2} más</span>}
@@ -833,7 +861,7 @@ const DayPanel: React.FC<DayPanelProps> = ({ date, events, isToday, expanded = f
     {events.length === 0 ? (
       <div className="flex min-h-24 items-center gap-3 px-4 py-5 text-base text-slate-500 sm:px-5">
         <CalendarDays className="h-6 w-6 shrink-0 text-slate-300" aria-hidden="true" />
-        <span>No hay ocupaciones ni actividades para este día y horario.</span>
+        <span>No hay ocupaciones ni actividades para este día con los filtros elegidos.</span>
       </div>
     ) : (
       <div className="divide-y divide-slate-100">
@@ -844,10 +872,8 @@ const DayPanel: React.FC<DayPanelProps> = ({ date, events, isToday, expanded = f
 );
 
 const EventRow: React.FC<{ event: PublicEvent; onOpen: () => void }> = ({ event, onOpen }) => (
-  <article className="grid gap-4 px-4 py-5 sm:grid-cols-[7rem_minmax(0,1fr)_auto] sm:items-center sm:px-5">
-    <div className={`inline-flex w-fit items-center gap-2 rounded-xl px-3 py-2 font-bold ${
-      event.source === 'reservation' ? 'bg-amber-100 text-amber-950' : 'bg-[#e1f2fb] text-[#003865]'
-    }`}>
+  <article style={categoryStyle(event.category)} className="grid gap-4 border-l-4 px-4 py-5 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center sm:px-5">
+    <div className="inline-flex w-fit items-center gap-2 rounded-xl bg-white/80 px-3 py-2 font-bold">
       <Clock3 className="h-5 w-5" aria-hidden="true" />
       <time dateTime={toLocalDateTime(event.startsAt)}>
         {event.startsAt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
@@ -855,11 +881,10 @@ const EventRow: React.FC<{ event: PublicEvent; onOpen: () => void }> = ({ event,
       </time>
     </div>
     <div className="min-w-0">
-      <span className={`mb-2 inline-flex rounded-full px-2.5 py-1 text-sm font-bold ${
-        event.source === 'reservation'
-          ? 'bg-amber-100 text-amber-950'
-          : 'bg-blue-100 text-blue-900'
-      }`}>
+      <span className="mb-2 mr-2 inline-flex rounded-full border bg-white/80 px-2.5 py-1 text-sm font-bold" style={{ borderColor: getAgendaCategory(event.category).color }}>
+        {getAgendaCategory(event.category).label}
+      </span>
+      <span className="mb-2 inline-flex rounded-full bg-white/80 px-2.5 py-1 text-sm text-slate-600">
         {event.source === 'reservation' ? 'Espacio ocupado' : 'Actividad publicada'}
       </span>
       <h3 className="text-lg font-bold leading-snug text-slate-950">{event.title}</h3>
@@ -919,13 +944,13 @@ const AgendaEventDetail: React.FC<{ event: PublicEvent; onClose: () => void }> =
         aria-modal="true"
         aria-labelledby="event-detail-title"
         tabIndex={-1}
-        className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl outline-none sm:rounded-3xl sm:p-7"
+        style={{ borderTopColor: getAgendaCategory(event.category).color }}
+        className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl border-t-8 bg-white p-5 shadow-2xl outline-none sm:rounded-3xl sm:p-7"
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <span className={`inline-flex rounded-full px-3 py-1 text-sm font-bold ${
-              event.source === 'reservation' ? 'bg-amber-100 text-amber-950' : 'bg-blue-100 text-blue-900'
-            }`}>
+            <span style={categoryStyle(event.category)} className="mr-2 inline-flex rounded-full border px-3 py-1 text-sm font-bold">{getAgendaCategory(event.category).label}</span>
+            <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">
               {event.source === 'reservation' ? 'Espacio ocupado · Confirmado' : 'Publicado en EntradaNet'}
             </span>
             <h2 id="event-detail-title" className="mt-3 text-2xl font-bold leading-tight text-slate-950 sm:text-3xl">{event.title}</h2>

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { AGENDA_CATEGORIES, categoryStyle, type AgendaCategoryId } from '../domain/agendaCategories';
 import { AlertCircle, ArrowLeft, CalendarCheck, Info, LoaderCircle, MapPin, UsersRound } from 'lucide-react';
 import {
   RESERVATION_ACTIVITY_TYPES,
@@ -24,6 +25,7 @@ const localDateKey = (date: Date) => {
 };
 
 const initialForm = (): ReservationInput => ({
+  category: 'unclassified',
   title: '',
   activityType: 'function',
   description: '',
@@ -171,7 +173,21 @@ export const ReservationForm: React.FC<ReservationFormProps> = ({ onCancel, onSa
               </label>
 
               <label className="block font-bold text-slate-800 sm:col-span-2">
-                Tipo de actividad <span className="text-red-700">*</span>
+                Categoría <span className="text-red-700">*</span>
+                <select
+                  value={form.category}
+                  onChange={(event) => setField('category', event.target.value as AgendaCategoryId)}
+                  className={`${inputClass(Boolean(fieldErrors.category))} border-l-4`}
+                  style={categoryStyle(form.category)}
+                  aria-invalid={Boolean(fieldErrors.category)}
+                >
+                  {AGENDA_CATEGORIES.map((category) => <option key={category.id} value={category.id}>{category.label}</option>)}
+                </select>
+                {fieldErrors.category && <span className="mt-1 block text-sm text-red-700">{fieldErrors.category}</span>}
+              </label>
+
+              <label className="block font-bold text-slate-800 sm:col-span-2">
+                Tipo de uso <span className="text-red-700">*</span>
                 <select
                   value={form.activityType}
                   onChange={(event) => setField('activityType', event.target.value as ReservationInput['activityType'])}
