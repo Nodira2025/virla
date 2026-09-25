@@ -26,6 +26,7 @@ function LoginView() {
       setPassword('');
       if (mode === 'signup' && !result.data.session) setMessage('Revisá tu correo para confirmar la cuenta. Luego el admin deberá habilitar tu acceso.');
       await reload();
+      if (mode === 'login' && result.data.session) window.location.hash = '#inicio';
     } catch { setError('No pudimos conectar con Virla. Volvé a intentar.'); }
     finally { setBusy(false); }
   };

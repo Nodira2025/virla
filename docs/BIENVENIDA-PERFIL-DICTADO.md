@@ -25,3 +25,5 @@
 - scripts/check-welcome-profile-voice.mjs prueba interpretación, fechas inválidas, campos ausentes y aislamiento del endpoint con dobles de prueba.
 - Compilación TypeScript/Vite y comprobación TypeScript de la función.
 - Se mantienen las comprobaciones de reservas y catálogo existentes.
+- Verificación publicada: GET anónimo devuelve 401; la cuenta personal de prueba guardó y recuperó datos/foto correctamente. Se restauró su foto anterior y se comprobó que conserva el rol staff. Si no tenía perfil, la prueba inicializa únicamente nombre/correo de esa cuenta ficticia ya existente.
+- Script reproducible: scripts/verify-profile-live.mjs. Modifica temporalmente solo el perfil de personal@pruebas.virla.invalid y restaura la foto; requiere las credenciales locales ignoradas por Git.
