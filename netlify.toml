@@ -13,6 +13,11 @@
   node_bundler = "esbuild"
 
 [[redirects]]
+  from = "/api/profile"
+  to = "/.netlify/functions/profile"
+  status = 200
+
+[[redirects]]
   from = "/api/reservations"
   to = "/.netlify/functions/reservations"
   status = 200

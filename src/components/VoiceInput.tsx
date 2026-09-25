@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Mic, Square, Check } from 'lucide-react';
 
 interface RecognitionResult { isFinal: boolean; 0: { transcript: string } }
-interface Recognition {
+export interface Recognition {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
@@ -14,7 +14,7 @@ interface Recognition {
   abort: () => void;
 }
 type RecognitionConstructor = new () => Recognition;
-const getRecognition = () => {
+export const getRecognition = () => {
   const browser = window as typeof window & { SpeechRecognition?: RecognitionConstructor; webkitSpeechRecognition?: RecognitionConstructor };
   return browser.SpeechRecognition || browser.webkitSpeechRecognition;
 };

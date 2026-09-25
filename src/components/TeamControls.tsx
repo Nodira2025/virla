@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { usePersonalProfile } from '../context/PersonalProfileContext';
 import { useAuth } from '../context/AuthContext';
 import { ROLE_LABELS } from '../domain/members';
 import { getSupabase } from '../infrastructure/supabase';
@@ -14,7 +15,7 @@ const guides: Partial<Record<MainView, string>> = {
   technical: 'Elegí una sala. Podés consultar su ficha técnica, abrir su agenda y solicitar un horario.',
 };
 export function TeamControls({ view, onNavigate }: { view: MainView; onNavigate: (view: MainView) => void }) {
-  const { member, signOut } = useAuth(); const [sound, updateSound] = useState(soundsEnabled);
+  const { member, signOut } = useAuth(); const { profile } = usePersonalProfile(); const [sound, updateSound] = useState(soundsEnabled);
   const [notices, setNotices] = useState<Notice[]>([]); const [open, setOpen] = useState(false); const [error, setError] = useState('');
   const known = useRef<Set<string> | null>(null);
   const memberId = member?.id;
@@ -45,10 +46,10 @@ export function TeamControls({ view, onNavigate }: { view: MainView; onNavigate:
     if (failure) { setError('No pudimos marcar el aviso como leído.'); return; }
     setNotices((rows) => rows.map((row) => row.id === notice.id ? { ...row, read_at } : row)); setOpen(false); onNavigate('requests');
   };
-  return <><div className="team-toolbar"><span className="member-name"><strong>{member?.display_name || member?.email}</strong> · {member?.role && ROLE_LABELS[member.role]}</span>
+  return <><div className="team-toolbar"><span className="member-name"><strong>{profile?.name || member?.display_name || member?.email}</strong> · {member?.role && ROLE_LABELS[member.role]}</span>
     <button onClick={() => { try { setSounds(!sound); updateSound(!sound); } catch { setError('Este navegador no permite activar sonidos.'); } }}>{sound ? 'Sonidos activados' : 'Activar sonidos'}</button>
     <button onClick={() => { if (!readGuide(guides[view] || guides.technical!)) setError('Este navegador no ofrece lectura en voz alta.'); }}>Escuchar guía</button><button onClick={() => window.speechSynthesis?.cancel()}>Detener voz</button>
-    <button aria-expanded={open} onClick={() => setOpen(!open)}>Avisos{notices.some((row) => !row.read_at) ? ' (' + notices.filter((row) => !row.read_at).length + ')' : ''}</button>
+    <button onClick={() => onNavigate('profile')}>Mi perfil</button><a href="#inicio">Bienvenida</a><button aria-expanded={open} onClick={() => setOpen(!open)}>Avisos{notices.some((row) => !row.read_at) ? ' (' + notices.filter((row) => !row.read_at).length + ')' : ''}</button>
     <button onClick={() => { void signOut().catch(() => setError('No se pudo cerrar sesión. Volvé a intentar.')); }}>Salir</button>
   </div>{open && <section className="team-card" aria-label="Avisos del equipo"><h2>Mis avisos</h2><p>Los sonidos funcionan con la app abierta y después de activarlos en este dispositivo.</p>{error && <p role="alert">{error}</p>}{!notices.length && <p>No hay avisos nuevos.</p>}{notices.map((notice) => <button key={notice.id} className="team-message" onClick={() => { void markRead(notice); }}>{!notice.read_at && '● '}{notice.message} · {new Date(notice.created_at).toLocaleString('es-AR')}</button>)}</section>}{error && !open && <p role="status" className="team-message">{error}</p>}</>;
 }

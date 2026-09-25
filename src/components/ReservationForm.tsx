@@ -4,7 +4,8 @@ import { AGENDA_CATEGORIES, getAgendaCategory, type AgendaCategoryId } from '../
 import { RESERVATION_ACTIVITY_TYPES, RESERVABLE_SPACES, getReservableSpace, type PublicReservation, type ReservationInput } from '../domain/reservations';
 import { RESERVATION_STEPS, stepForErrors, todayInTucuman, validateReservation, type ReservationFieldErrors } from '../domain/reservationValidation';
 import { createReservation, ReservationRequestError } from '../services/reservations';
-import { VoiceInput } from './VoiceInput';
+import { GuidedVoiceBooking } from './GuidedVoiceBooking';
+import { usePersonalProfile } from '../context/PersonalProfileContext';
 import { useAuth } from '../context/AuthContext';
 import { canApprove } from '../domain/members';
 import { fetchSpaceCatalog } from '../services/spaces';
@@ -20,11 +21,13 @@ function Field({ label, required, error, hint, children, wide = false }: { label
 
 export function ReservationForm({ initialSpaceId, onCancel, onSaved }: ReservationFormProps) {
   const { member } = useAuth(); const manager = canApprove(member);
+  const { profile } = usePersonalProfile();
   const [catalog, setCatalog] = useState<PublicSpaceProfile[]>([]);
   useEffect(() => { const controller = new AbortController(); void fetchSpaceCatalog(controller.signal).then(setCatalog).catch(() => undefined); return () => controller.abort(); }, []);
-  const [form, setForm] = useState<ReservationInput>(() => ({ ...initialForm(), spaceId: initialSpaceId || 'teatro-300', responsibleName: member?.display_name || '', contact: member?.email || '' }));
+  const [form, setForm] = useState<ReservationInput>(() => ({ ...initialForm(), spaceId: initialSpaceId || 'teatro-300', responsibleName: profile?.name || member?.display_name || '', contact: profile?.contact || member?.email || '', organization: profile?.area || '' }));
   const [step, setStep] = useState(0);
-  const [entryMode, setEntryMode] = useState<'manual' | 'voice'>('manual');
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  useEffect(() => { if (profile) setForm((current) => ({ ...current, responsibleName: !current.responsibleName || current.responsibleName === member?.display_name ? profile.name : current.responsibleName, contact: !current.contact || current.contact === member?.email ? profile.contact : current.contact, organization: current.organization || profile.area })); }, [profile, member?.display_name, member?.email]);
   const [errors, setErrors] = useState<ReservationFieldErrors>({});
   const [submitError, setSubmitError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -84,8 +87,8 @@ export function ReservationForm({ initialSpaceId, onCancel, onSaved }: Reservati
         <fieldset disabled={isSaving} className="form-fields">
           <legend className="sr-only">{STEPS[step]}</legend>
           {step === 0 && <>
-            <div className="entry-mode field-wide" aria-label="Forma de completar la actividad"><button type="button" aria-pressed={entryMode === 'manual'} onClick={() => setEntryMode('manual')}><PencilLine size={20} aria-hidden="true" />Formulario</button><button type="button" aria-pressed={entryMode === 'voice'} onClick={() => setEntryMode('voice')}><Mic size={20} aria-hidden="true" />Dictado por voz</button></div>
-            {entryMode === 'voice' && <div className="field-wide"><VoiceInput onApply={(field, text) => setField(field, [form[field].trim(), text].filter(Boolean).join(' ').slice(0, field === 'title' ? 100 : 500))} /></div>}
+            <div className="entry-mode field-wide" aria-label="Forma de completar la actividad"><button type="button" aria-pressed={!voiceOpen} onClick={() => setVoiceOpen(false)}><PencilLine size={20} aria-hidden="true" />Formulario</button><button type="button" aria-haspopup="dialog" onClick={() => setVoiceOpen(true)}><Mic size={20} aria-hidden="true" />Dictado por voz</button></div>
+
             <Field label="Nombre de la actividad" required error={errors.title} wide><input {...invalid('title')} value={form.title} onChange={(event) => setField('title', event.target.value)} maxLength={100} placeholder="Ej.: Reunión de equipo" /></Field>
             <Field label="Descripción" required error={errors.description} hint="Esta descripción será visible en la agenda pública." wide><textarea {...invalid('description')} rows={3} value={form.description} onChange={(event) => setField('description', event.target.value)} maxLength={500} placeholder="Contá brevemente de qué se trata la actividad." /></Field>
             <Field label="Tipo de actividad" required error={errors.activityType}><select {...invalid('activityType')} value={form.activityType} onChange={(event) => setField('activityType', event.target.value as ReservationInput['activityType'])}>{RESERVATION_ACTIVITY_TYPES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></Field>
@@ -119,5 +122,6 @@ export function ReservationForm({ initialSpaceId, onCancel, onSaved }: Reservati
         <p className="summary-note">{isSaving ? 'Esperando la confirmación del guardado…' : manager ? 'Al confirmar se ocupa el espacio y se actualiza la agenda.' : 'El pedido se envía a dirección. Todavía no ocupa el espacio.'}</p>
       </aside>
     </form>
+    {voiceOpen && <GuidedVoiceBooking responsible={form.responsibleName} initial={form} onClose={() => setVoiceOpen(false)} onApply={(value) => { setForm((current) => ({ ...current, ...value })); setErrors({}); setSubmitError('' ); setVoiceOpen(false); goToStep(2); }} />}
   </section>;
 }

@@ -16,6 +16,7 @@ import {
 } from './domain/reservations';
 import { RequestsView } from './components/RequestsView';
 import { AdminView } from './components/AdminView';
+import { ProfileView } from './components/ProfileView';
 import { playFeedback } from './services/feedback';
 import { createReservation } from './services/reservations';
 
@@ -105,9 +106,9 @@ export default function App() {
 
   return (
     <AppShell activeView={activeView} onNavigate={navigate}>
-      <div hidden={activeView !== 'store'}><StoreView /></div>
+      {activeView === 'store' && <StoreView />}
       {lastReservation?.status === 'pending' && <p className="team-message" role="status">Solicitud enviada a dirección. El espacio quedará ocupado cuando sea aprobada.<button onClick={() => setLastReservation(null)} aria-label="Cerrar aviso"> ×</button></p>}
-      {activeView === 'requests' ? <RequestsView onChanged={() => setReservationRefreshKey((value) => value + 1)} /> : activeView === 'admin' ? <AdminView /> : activeView === 'home' ? <HomeView onNavigate={navigate} /> : activeView === 'store' ? null : activeView === 'request' ? <SpaceRequestForm /> : activeView === 'spaces' || activeView === 'technical' ? <SpacesView key={activeView} view={activeView} /> : activeView === 'reserve' ? (
+      {activeView === 'profile' ? <ProfileView /> : activeView === 'requests' ? <RequestsView onChanged={() => setReservationRefreshKey((value) => value + 1)} /> : activeView === 'admin' ? <AdminView /> : activeView === 'home' ? <HomeView onNavigate={navigate} /> : activeView === 'store' ? null : activeView === 'request' ? <SpaceRequestForm /> : activeView === 'spaces' || activeView === 'technical' ? <SpacesView key={activeView} view={activeView} /> : activeView === 'reserve' ? (
         <ReservationForm key={selectedRoom || "all"} initialSpaceId={selectedRoom} onCancel={showAgenda} onSaved={handleReservationSaved} />
       ) : <>
         {lastReservation?.status === 'confirmed' && <section id="reservation-success" tabIndex={-1} className="reservation-success" role="status"><CheckCircle2 size={26} aria-hidden="true" /><div><h2>Agenda actualizada</h2><p><strong>{lastReservation.title}</strong> · {lastReservation.spaceName} · {lastReservation.date.split('-').reverse().join('/')} · {lastReservation.startTime} a {lastReservation.endTime} hs.</p><p>La actividad ya está guardada y disponible en la agenda.</p></div><button type="button" aria-label="Cerrar confirmación" onClick={() => setLastReservation(null)}><X size={20} /></button></section>}

@@ -5,6 +5,7 @@ import { Portal } from './Portal'
 import { AuthProvider } from './context/AuthContext'
 import './components/TeamWorkspace.css'
 import './institutional.css'
+import './welcome.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
