@@ -193,6 +193,12 @@ export default async (request: Request, _context: Context) => {
       return json({ error: 'Método no permitido.' } satisfies ReservationApiError, 405);
     }
 
+    // Once Supabase is active, authenticated RPCs are the only writing path.
+    // Keep the old store available for an explicitly authorized historical import.
+    if ((process.env.VITE_SPACE_CATALOG_BACKEND || 'supabase') === 'supabase') {
+      return json({ error: 'Ingresá a Virla para enviar o confirmar una solicitud.' }, 410);
+    }
+
     const contentLength = Number(request.headers.get('content-length') || '0');
     if (contentLength > MAX_BODY_LENGTH) return json({ error: 'La solicitud es demasiado grande.' }, 413);
     const text = await request.text();

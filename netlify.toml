@@ -4,6 +4,9 @@
 
 [build.environment]
   NODE_VERSION = "22.12.0"
+  VITE_SUPABASE_URL = "https://iiehofyypkmjbcwqnwlg.supabase.co"
+  VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_GDDQ0FQQaD33OLrWV4660w_rdA-h5IQ"
+  VITE_SPACE_CATALOG_BACKEND = "supabase"
 
 [functions]
   directory = "netlify/functions"
@@ -12,4 +15,9 @@
 [[redirects]]
   from = "/api/reservations"
   to = "/.netlify/functions/reservations"
+  status = 200
+
+[[redirects]]
+  from = "/api/spaces"
+  to = "/.netlify/functions/spaces"
   status = 200

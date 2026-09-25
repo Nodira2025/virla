@@ -12,6 +12,7 @@
   "dependencies": {
     "@netlify/blobs": "^11.0.3",
     "@netlify/functions": "^6.0.0",
+    "@supabase/supabase-js": "^2.117.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.41.0",
     "react": "^19.2.8",

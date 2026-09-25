@@ -8,6 +8,10 @@ import {
   Clock3,
   ExternalLink,
   Info,
+  List,
+  Plus,
+  SlidersHorizontal,
+  Share2,
   LoaderCircle,
   MapPin,
   RefreshCw,
@@ -15,7 +19,7 @@ import {
   UserRound,
   X,
 } from 'lucide-react';
-import type { PublicReservation } from '../domain/reservations';
+import { RESERVABLE_SPACES, type PublicReservation } from '../domain/reservations';
 import { AGENDA_CATEGORIES, categoryFromTerms, categoryStyle, getAgendaCategory, reservationCategory, type AgendaCategoryId } from '../domain/agendaCategories';
 import { ENTRADANET_BASE_URL, ENTRADANET_EVENTS_API, isEntradanetUrl } from '../infrastructure/entradanet';
 import { fetchReservations } from '../services/reservations';
@@ -46,6 +50,7 @@ interface EntradanetApiEvent {
 }
 
 interface PublicEvent {
+  spaceId?: string;
   category: AgendaCategoryId;
   id: string;
   link?: string;
@@ -232,6 +237,7 @@ const reservationToEvent = (reservation: PublicReservation): PublicEvent | null 
     endsAt,
     location: reservation.spaceName,
     source: 'reservation',
+    spaceId: reservation.spaceId,
     responsibleName: reservation.responsibleName,
     organization: reservation.organization,
     description: reservation.description,
@@ -241,15 +247,20 @@ const reservationToEvent = (reservation: PublicReservation): PublicEvent | null 
 };
 
 interface PublicAgendaViewProps {
+  spaceId?: string;
   reservationRefreshKey?: number;
+  onCreate?: () => void;
+  focusDate?: string;
 }
 
-export const PublicAgendaView: React.FC<PublicAgendaViewProps> = ({ reservationRefreshKey = 0 }) => {
+export const PublicAgendaView: React.FC<PublicAgendaViewProps> = ({ reservationRefreshKey = 0, onCreate, focusDate, spaceId }) => {
   const today = useMemo(() => new Date(), []);
   const selectedDayPanelRef = useRef<HTMLElement>(null);
   const [mode, setMode] = useState<CalendarMode>('month');
-  const [anchorDate, setAnchorDate] = useState(today);
-  const [selectedDate, setSelectedDate] = useState(today);
+  const [display, setDisplay] = useState<'calendar' | 'list'>('calendar');
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [anchorDate, setAnchorDate] = useState(() => focusDate ? new Date(focusDate + 'T12:00:00') : today);
+  const [selectedDate, setSelectedDate] = useState(() => focusDate ? new Date(focusDate + 'T12:00:00') : today);
   const [timePreset, setTimePreset] = useState<TimePreset>('all');
   const [categoryFilter, setCategoryFilter] = useState<AgendaCategoryId | 'all'>('all');
   const [customStart, setCustomStart] = useState('08:00');
@@ -260,12 +271,27 @@ export const PublicAgendaView: React.FC<PublicAgendaViewProps> = ({ reservationR
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reservationLoadError, setReservationLoadError] = useState(false);
+  const [entradanetLoadError, setEntradanetLoadError] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<PublicEvent | null>(null);
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === 'visible') setRefreshKey((key) => key + 1); };
+    const timer = window.setInterval(refresh, 30000); window.addEventListener('focus', refresh);
+    return () => { clearInterval(timer); window.removeEventListener('focus', refresh); };
+  }, []);
+
+  useEffect(() => {
+    if (!focusDate) return;
+    const date = new Date(focusDate + 'T12:00:00');
+    if (Number.isNaN(date.getTime())) return;
+    setAnchorDate(date);
+    setSelectedDate(date);
+  }, [focusDate, reservationRefreshKey]);
 
   const loadAgenda = useCallback(async (signal: AbortSignal) => {
     try {
+      setError(null);
       const [entradanetResult, reservationsResult] = await Promise.allSettled([
         loadEntradanetEvents(signal),
         fetchReservations(signal),
@@ -277,6 +303,7 @@ export const PublicAgendaView: React.FC<PublicAgendaViewProps> = ({ reservationR
         ? reservationsResult.value.map(reservationToEvent).filter((event): event is PublicEvent => Boolean(event))
         : [];
       setReservationLoadError(reservationsResult.status === 'rejected');
+      setEntradanetLoadError(entradanetResult.status === 'rejected');
 
       if (entradanetResult.status === 'rejected' && reservationsResult.status === 'rejected') {
         throw new Error('All agenda sources unavailable');
@@ -296,18 +323,19 @@ export const PublicAgendaView: React.FC<PublicAgendaViewProps> = ({ reservationR
 
   useEffect(() => {
     const controller = new AbortController();
-    void loadAgenda(controller.signal);
-    return () => controller.abort();
+    const timeout = window.setTimeout(() => { controller.abort(); setError('La conexión está demorando demasiado. Volvé a intentar.'); setIsLoading(false); }, 20000);
+    void loadAgenda(controller.signal).finally(() => window.clearTimeout(timeout));
+    return () => { window.clearTimeout(timeout); controller.abort(); };
   }, [loadAgenda, refreshKey, reservationRefreshKey]);
 
   const visibleEvents = useMemo(
-    () => events.filter((event) => (categoryFilter === 'all' || event.category === categoryFilter) && matchesTime(
+    () => events.filter((event) => (!spaceId || event.spaceId === spaceId) && (categoryFilter === 'all' || event.category === categoryFilter) && matchesTime(
       event,
       timePreset,
       appliedCustomRange?.start || '',
       appliedCustomRange?.end || '',
     )),
-    [appliedCustomRange, events, timePreset, categoryFilter],
+    [appliedCustomRange, events, timePreset, categoryFilter, spaceId],
   );
 
   const eventsByDate = useMemo(() => {
@@ -370,7 +398,7 @@ export const PublicAgendaView: React.FC<PublicAgendaViewProps> = ({ reservationR
       const panel = selectedDayPanelRef.current;
       if (!panel) return;
       panel.focus({ preventScroll: true });
-      panel.scrollIntoView({
+      if (!window.matchMedia('(min-width: 1280px)').matches) panel.scrollIntoView({
         behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
         block: 'start',
       });
@@ -431,12 +459,12 @@ export const PublicAgendaView: React.FC<PublicAgendaViewProps> = ({ reservationR
     [periodBounds, visibleEvents],
   );
   const unfilteredPeriodEvents = useMemo(
-    () => events.filter((event) => event.startsAt >= periodBounds.start && event.startsAt < periodBounds.end),
-    [events, periodBounds],
+    () => events.filter((event) => (!spaceId || event.spaceId === spaceId) && event.startsAt >= periodBounds.start && event.startsAt < periodBounds.end),
+    [events, periodBounds, spaceId],
   );
   const nextEvent = useMemo(
-    () => events.find((event) => event.startsAt >= periodBounds.end) || null,
-    [events, periodBounds],
+    () => events.find((event) => (!spaceId || event.spaceId === spaceId) && event.startsAt >= periodBounds.end) || null,
+    [events, periodBounds, spaceId],
   );
 
   const showNextEvent = () => {
@@ -451,165 +479,30 @@ export const PublicAgendaView: React.FC<PublicAgendaViewProps> = ({ reservationR
 
   return (
     <section aria-labelledby="agenda-title" className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="font-bold uppercase tracking-[0.12em] text-[#007F8C]">Centro Cultural Virla</p>
-          <h1 id="agenda-title" className="mt-1 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">Agenda del Virla</h1>
-          <p className="mt-2 max-w-2xl text-base leading-relaxed text-slate-600">
-            Elegí cómo querés verla. Todos los horarios corresponden a Tucumán.
-          </p>
+      <div className="team-actions" style={{ marginBottom: 16 }}><label>Sala <select aria-label="Filtrar agenda por sala" value={spaceId || ""} onChange={(event) => { window.location.hash = "#agenda" + (event.target.value ? "/" + event.target.value : ""); }}><option value="">Todas las salas</option>{RESERVABLE_SPACES.map((space) => <option key={space.id} value={space.id}>{space.name}</option>)}</select></label>{spaceId && <a href={"#datos-tecnicos/" + spaceId}>Ver ficha de la sala</a>}</div>
+      {spaceId && <p className="field-hint">Ocupaciones confirmadas de esta sala. Los eventos externos sin sala vinculada se consultan en «Todas las salas».</p>}
+      <div className="agenda-heading">
+        <div className="page-heading"><p className="eyebrow">ORGANIZAMOS LA CULTURA</p><h1 id="agenda-title">Mi agenda</h1><p>Todas las actividades del Virla. Horarios de Tucumán.</p></div>
+        {onCreate && <button type="button" className="primary-button" onClick={onCreate}><Plus size={20} aria-hidden="true" />Crear agenda</button>}
+      </div>
+      <div className="agenda-toolbar">
+        <div className="agenda-toolbar-top">
+          <div className="view-switch" aria-label="Cómo ver la agenda"><button type="button" aria-pressed={display === 'calendar'} onClick={() => setDisplay('calendar')}><CalendarDays size={19} aria-hidden="true" />Calendario</button><button type="button" aria-pressed={display === 'list'} onClick={() => setDisplay('list')}><List size={19} aria-hidden="true" />Lista</button></div>
+          <div className="agenda-tools"><button type="button" aria-expanded={filtersOpen} aria-controls="agenda-filters" className="secondary-button" onClick={() => setFiltersOpen(!filtersOpen)}><SlidersHorizontal size={18} aria-hidden="true" />Filtros{(categoryFilter !== 'all' || timePreset !== 'all') && <span className="filter-active">Activos</span>}</button><button type="button" className="icon-button" aria-label="Actualizar agenda" disabled={isLoading} onClick={retryLoad}><RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} aria-hidden="true" /></button></div>
         </div>
-        {lastUpdatedAt && !isLoading && !error && (
-          <p className="text-sm text-slate-500" aria-live="polite">
-            Actualizada hoy a las {lastUpdatedAt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} hs
-          </p>
-        )}
-      </div>
-
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-        <div className="grid gap-5 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-end">
-          <fieldset>
-            <legend className="mb-2 text-sm font-bold text-slate-700">Ver agenda por</legend>
-            <div className="grid grid-cols-3 gap-2 rounded-xl bg-slate-100 p-1" aria-label="Elegir vista de calendario">
-              {(Object.keys(MODE_LABELS) as CalendarMode[]).map((calendarMode) => (
-                <button
-                  key={calendarMode}
-                  type="button"
-                  onClick={() => setMode(calendarMode)}
-                  aria-pressed={mode === calendarMode}
-                  className={`min-h-11 rounded-lg px-4 py-2 text-base font-bold transition ${
-                    mode === calendarMode
-                      ? 'bg-[#004a7f] text-white shadow-sm'
-                      : 'bg-transparent text-slate-700 hover:bg-white'
-                  }`}
-                >
-                  {MODE_LABELS[calendarMode]}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-
-          <div>
-            <span className="mb-2 block text-sm font-bold text-slate-700">Fecha</span>
-            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
-              <button
-                type="button"
-                onClick={() => movePeriod(-1)}
-                className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl border border-slate-300 bg-white px-3 text-base font-bold text-slate-700 hover:bg-slate-50"
-                aria-label={`${mode === 'month' ? 'Mes' : mode === 'week' ? 'Semana' : 'Día'} anterior`}
-              >
-                <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-                <span className="hidden sm:inline">Anterior</span>
-              </button>
-              <strong className="px-2 text-center text-base leading-tight text-slate-950 sm:text-lg" aria-live="polite" aria-atomic="true">{periodLabel}</strong>
-              <button
-                type="button"
-                onClick={() => movePeriod(1)}
-                className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl border border-slate-300 bg-white px-3 text-base font-bold text-slate-700 hover:bg-slate-50"
-                aria-label={`${mode === 'month' ? 'Mes' : mode === 'week' ? 'Semana' : 'Día'} siguiente`}
-              >
-                <span className="hidden sm:inline">Siguiente</span>
-                <ChevronRight className="h-5 w-5" aria-hidden="true" />
-              </button>
-            </div>
-          </div>
-
-          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] lg:block">
-            <label className="block text-sm font-bold text-slate-700">
-              Horario
-              <select
-                value={timePreset}
-                onChange={(event) => changeTimePreset(event.target.value as TimePreset)}
-                className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-base font-semibold text-slate-800 outline-none focus:border-[#007F8C] focus:ring-2 focus:ring-[#007F8C]/20 lg:min-w-56"
-              >
-                {TIME_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
-            </label>
-            <button
-              type="button"
-              onClick={returnToToday}
-              className="min-h-11 self-end rounded-xl border border-[#004a7f] bg-white px-4 text-base font-bold text-[#004a7f] hover:bg-blue-50 lg:mt-3 lg:w-full"
-            >
-              Ir a hoy
-            </button>
-          </div>
+        <div className="agenda-datebar">
+          <div className="agenda-period"><button type="button" className="icon-button" onClick={() => movePeriod(-1)} aria-label={MODE_LABELS[mode] + ' anterior'}><ChevronLeft size={20} /></button><strong aria-live="polite" aria-atomic="true">{periodLabel}</strong><button type="button" className="icon-button" onClick={() => movePeriod(1)} aria-label={MODE_LABELS[mode] + ' siguiente'}><ChevronRight size={20} /></button></div>
+          <div className="agenda-period-options"><button type="button" className="today-button" onClick={returnToToday}>Hoy</button><label className="sr-only" htmlFor="calendar-period">Período de la agenda</label><select id="calendar-period" value={mode} onChange={(event) => setMode(event.target.value as CalendarMode)}>{(Object.keys(MODE_LABELS) as CalendarMode[]).map((value) => <option key={value} value={value}>{MODE_LABELS[value]}</option>)}</select></div>
         </div>
-
-        {timePreset === 'custom' && (
-          <div className="mt-5 flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 sm:flex-row sm:flex-wrap sm:items-end">
-            <label className="text-sm font-bold text-slate-700">
-              Desde
-              <input
-                type="time"
-                value={customStart}
-                onChange={(event) => setCustomStart(event.target.value)}
-                className="mt-1 block min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-base font-semibold"
-              />
-            </label>
-            <label className="text-sm font-bold text-slate-700">
-              Hasta
-              <input
-                type="time"
-                value={customEnd}
-                onChange={(event) => setCustomEnd(event.target.value)}
-                className="mt-1 block min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-base font-semibold"
-              />
-            </label>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <button
-                type="button"
-                onClick={applyCustomTime}
-                className="min-h-11 rounded-xl bg-[#004a7f] px-5 text-base font-bold text-white hover:bg-[#003865]"
-              >
-                Aplicar horario
-              </button>
-              <button
-                type="button"
-                onClick={clearTimeFilter}
-                className="min-h-11 rounded-xl border border-slate-300 bg-white px-5 text-base font-bold text-slate-700 hover:bg-slate-50"
-              >
-                Quitar filtro
-              </button>
-            </div>
-            <div className="basis-full">
-              {customTimeError ? (
-                <p className="font-semibold text-red-700" role="alert">{customTimeError}</p>
-              ) : appliedCustomRange ? (
-                <p className="font-semibold text-[#004a7f]" role="status">
-                  Mostrando actividades que comienzan entre {appliedCustomRange.start} y {appliedCustomRange.end} hs.
-                </p>
-              ) : (
-                <p className="text-sm leading-relaxed text-slate-600">Elegí las dos horas y tocá “Aplicar horario”.</p>
-              )}
-            </div>
-          </div>
-        )}
+        {filtersOpen && <div id="agenda-filters" className="agenda-filters">
+          <label>Categoría<select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value as AgendaCategoryId | 'all')}><option value="all">Todas las categorías</option>{AGENDA_CATEGORIES.map((category) => <option key={category.id} value={category.id}>{category.label}</option>)}</select></label>
+          <label>Horario<select value={timePreset} onChange={(event) => changeTimePreset(event.target.value as TimePreset)}>{TIME_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+          {timePreset === 'custom' && <div className="custom-time-fields"><label>Desde<input type="time" value={customStart} onChange={(event) => setCustomStart(event.target.value)} /></label><label>Hasta<input type="time" value={customEnd} onChange={(event) => setCustomEnd(event.target.value)} /></label><button type="button" className="secondary-button" onClick={applyCustomTime}>Aplicar horario</button>{customTimeError && <p role="alert">{customTimeError}</p>}{appliedCustomRange && <p role="status">De {appliedCustomRange.start} a {appliedCustomRange.end} hs</p>}</div>}
+          <button type="button" className="clear-filters" onClick={clearTimeFilter}>Quitar filtros</button>
+          <ul className="category-legend" aria-label="Colores de las categorías">{AGENDA_CATEGORIES.map((category) => <li key={category.id}><span style={{ background: category.color }} aria-hidden="true" />{category.label}</li>)}</ul>
+        </div>}
       </div>
-
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
-        <label className="block max-w-sm text-base font-bold text-slate-800">
-          Categoría
-          <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value as AgendaCategoryId | 'all')}
-            className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-base focus:ring-2 focus:ring-[#007F8C]">
-            <option value="all">Todas las categorías</option>
-            {AGENDA_CATEGORIES.map((category) => <option key={category.id} value={category.id}>{category.label}</option>)}
-          </select>
-        </label>
-        <ul aria-label="Colores de las categorías" className="mt-4 flex flex-wrap gap-2">
-          {AGENDA_CATEGORIES.map((category) => (
-            <li key={category.id} className="rounded-lg border-l-4 px-3 py-1.5 text-sm font-semibold" style={categoryStyle(category.id)}>{category.label}</li>
-          ))}
-        </ul>
-        {events.some((event) => event.source === 'entradanet' && event.category === 'unclassified') && (
-          <p className="mt-3 text-sm text-slate-600">Las actividades que EntradaNet envía sin categoría aparecen como “Sin clasificar”.</p>
-        )}
-      </div>
-
-      <div className="flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-base leading-relaxed text-blue-950">
-        <Info className="mt-0.5 h-5 w-5 shrink-0 text-[#004a7f]" aria-hidden="true" />
-        <p><strong>Qué muestra esta agenda:</strong> las ocupaciones cargadas por el equipo y las actividades publicadas en EntradaNet. Como EntradaNet no informa la sala ni la duración, esas actividades deben confirmarse antes de ocupar un espacio.</p>
-      </div>
-
+      {entradanetLoadError && !error && <div className="agenda-source-warning" role="alert"><AlertCircle size={20} aria-hidden="true" /><p>No pudimos cargar las actividades de EntradaNet. La agenda puede estar incompleta.</p><button type="button" onClick={retryLoad}>Reintentar</button></div>}
       {reservationLoadError && (
         <div className="flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-base text-amber-950" role="alert">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
@@ -619,7 +512,7 @@ export const PublicAgendaView: React.FC<PublicAgendaViewProps> = ({ reservationR
 
       {isLoading ? (
         <div className="flex min-h-80 flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white p-8 text-center" role="status">
-          <LoaderCircle className="h-8 w-8 animate-spin text-[#007F8C]" aria-hidden="true" />
+          <LoaderCircle className="h-8 w-8 animate-spin text-[#0766f5]" aria-hidden="true" />
           <strong className="text-lg text-slate-900">Cargando la agenda…</strong>
           <span className="text-base text-slate-500">Puede demorar unos segundos.</span>
         </div>
@@ -632,7 +525,7 @@ export const PublicAgendaView: React.FC<PublicAgendaViewProps> = ({ reservationR
             <button
               type="button"
               onClick={retryLoad}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#004a7f] px-5 text-base font-bold text-white hover:bg-[#003865]"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#0766f5] px-5 text-base font-bold text-white hover:bg-[#0655cf]"
             >
               <RefreshCw className="h-5 w-5" aria-hidden="true" />
               Volver a intentar
@@ -647,7 +540,7 @@ export const PublicAgendaView: React.FC<PublicAgendaViewProps> = ({ reservationR
             </a>
           </div>
         </div>
-      ) : mode !== 'day' && periodEvents.length === 0 ? (
+      ) : (display === 'list' || mode === 'week') && periodEvents.length === 0 ? (
         <EmptyPeriodState
           mode={mode}
           hasHiddenEvents={unfilteredPeriodEvents.length > 0}
@@ -655,6 +548,8 @@ export const PublicAgendaView: React.FC<PublicAgendaViewProps> = ({ reservationR
           onClearTimeFilter={clearTimeFilter}
           onShowNextEvent={showNextEvent}
         />
+      ) : display === 'list' ? (
+        <div className="space-y-4">{Array.from(new Set(periodEvents.map((event) => dateKey(event.startsAt)))).map((key) => <DayPanel key={key} date={new Date(key + 'T12:00:00')} events={eventsByDate.get(key) || []} isToday={key === dateKey(today)} onSelectEvent={setSelectedEvent} />)}</div>
       ) : mode === 'month' ? (
         <MonthCalendar
           anchorDate={anchorDate}
@@ -677,13 +572,15 @@ export const PublicAgendaView: React.FC<PublicAgendaViewProps> = ({ reservationR
         <DayPanel date={anchorDate} events={eventsByDate.get(dateKey(anchorDate)) || []} isToday={sameDay(anchorDate, today)} expanded onSelectEvent={setSelectedEvent} />
       )}
 
+      <div className="agenda-footnote"><span><Info size={16} aria-hidden="true" /> Incluye ocupaciones internas y actividades de EntradaNet.</span>{lastUpdatedAt && !isLoading && !error && <span>Actualizada {lastUpdatedAt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} hs</span>}</div>
+      <details className="agenda-data-note"><summary>Antes de reservar un espacio</summary><p>EntradaNet puede no informar la sala ni la duración. Confirmá esos datos antes de registrar otra ocupación. Los eventos sin categoría informada se muestran como “Sin clasificar”.</p></details>
       {selectedEvent && <AgendaEventDetail event={selectedEvent} onClose={() => setSelectedEvent(null)} />}
     </section>
   );
 };
 
 interface EmptyPeriodStateProps {
-  mode: Exclude<CalendarMode, 'day'>;
+  mode: CalendarMode;
   hasHiddenEvents: boolean;
   nextEvent: PublicEvent | null;
   onClearTimeFilter: () => void;
@@ -704,7 +601,7 @@ const EmptyPeriodState: React.FC<EmptyPeriodStateProps> = ({
     <h2 className="mt-4 text-xl font-bold text-slate-950">
       {hasHiddenEvents
         ? 'Hay actividades, pero no coinciden con los filtros'
-        : `No hay ocupaciones ni actividades ${mode === 'month' ? 'este mes' : 'esta semana'}`}
+        : `No hay ocupaciones ni actividades ${mode === 'month' ? 'este mes' : mode === 'week' ? 'esta semana' : 'este día'}`}
     </h2>
     <p className="mt-2 max-w-xl text-base leading-relaxed text-slate-600">
       {hasHiddenEvents
@@ -721,7 +618,7 @@ const EmptyPeriodState: React.FC<EmptyPeriodStateProps> = ({
         <button
           type="button"
           onClick={onClearTimeFilter}
-          className="min-h-11 rounded-xl bg-[#004a7f] px-5 text-base font-bold text-white hover:bg-[#003865]"
+          className="min-h-11 rounded-xl bg-[#0766f5] px-5 text-base font-bold text-white hover:bg-[#0655cf]"
         >
           Mostrar todas las actividades
         </button>
@@ -730,7 +627,7 @@ const EmptyPeriodState: React.FC<EmptyPeriodStateProps> = ({
         <button
           type="button"
           onClick={onShowNextEvent}
-          className="min-h-11 rounded-xl bg-[#004a7f] px-5 text-base font-bold text-white hover:bg-[#003865]"
+          className="min-h-11 rounded-xl bg-[#0766f5] px-5 text-base font-bold text-white hover:bg-[#0655cf]"
         >
           Ver lo próximo
         </button>
@@ -762,12 +659,12 @@ const MonthCalendar: React.FC<MonthCalendarProps> = ({
   selectedDayPanelRef,
   onSelectEvent,
 }) => (
-  <div className="space-y-4">
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+  <div className="month-layout">
+    <div className="month-grid overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="border-b border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-600">
-        Tocá un día para ver sus actividades debajo del calendario.
+        Elegí un día para ver sus actividades.
       </div>
-      <div className="grid grid-cols-7 border-b border-slate-200 bg-[#061f35] text-center text-xs font-bold uppercase tracking-wide text-white sm:text-sm">
+      <div className="grid grid-cols-7 border-b border-slate-200 bg-blue-50 text-center text-xs font-bold uppercase tracking-wide text-blue-800 sm:text-sm">
         {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((day) => <div key={day} className="px-1 py-3">{day}</div>)}
       </div>
       <div className="grid grid-cols-7 gap-px bg-slate-200">
@@ -788,12 +685,12 @@ const MonthCalendar: React.FC<MonthCalendarProps> = ({
               aria-label={`${formatFullDate(day)}, ${eventLabel}`}
               aria-pressed={isSelected}
               aria-controls="selected-day-details"
-              className={`min-h-20 min-w-0 p-1.5 text-left transition sm:min-h-32 sm:p-2 ${
+              className={`calendar-day min-h-16 min-w-0 p-1.5 text-left transition sm:min-h-24 sm:p-2 ${
                 belongsToMonth ? 'bg-white' : 'bg-slate-50 text-slate-400'
-              } ${isSelected ? 'relative z-10 ring-3 ring-inset ring-[#007F8C]' : 'hover:bg-blue-50'}`}
+              } ${isSelected ? 'relative z-10 ring-3 ring-inset ring-[#0766f5]' : 'hover:bg-blue-50'}`}
             >
               <span className={`inline-flex h-8 min-w-8 items-center justify-center rounded-full px-1 text-base font-bold ${
-                isToday ? 'bg-[#004a7f] text-white' : belongsToMonth ? 'text-slate-900' : 'text-slate-400'
+                isToday ? 'bg-[#0766f5] text-white' : belongsToMonth ? 'text-slate-900' : 'text-slate-400'
               }`}>
                 {day.getDate()}
               </span>
@@ -849,7 +746,7 @@ const DayPanel: React.FC<DayPanelProps> = ({ date, events, isToday, expanded = f
     id={panelId}
     ref={panelRef}
     tabIndex={panelRef ? -1 : undefined}
-    className="scroll-mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm outline-none focus:ring-3 focus:ring-[#007F8C]"
+    className="scroll-mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm outline-none focus:ring-3 focus:ring-[#0766f5]"
     aria-labelledby={`day-${dateKey(date)}`}
   >
     <div className={`flex flex-col gap-1 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5 ${isToday ? 'bg-blue-50' : 'bg-slate-50'}`}>
@@ -872,7 +769,7 @@ const DayPanel: React.FC<DayPanelProps> = ({ date, events, isToday, expanded = f
 );
 
 const EventRow: React.FC<{ event: PublicEvent; onOpen: () => void }> = ({ event, onOpen }) => (
-  <article style={categoryStyle(event.category)} className="grid gap-4 border-l-4 px-4 py-5 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center sm:px-5">
+  <button type="button" onClick={onOpen} aria-label={"Ver ficha completa de " + event.title} style={categoryStyle(event.category)} className="event-row">
     <div className="inline-flex w-fit items-center gap-2 rounded-xl bg-white/80 px-3 py-2 font-bold">
       <Clock3 className="h-5 w-5" aria-hidden="true" />
       <time dateTime={toLocalDateTime(event.startsAt)}>
@@ -889,39 +786,43 @@ const EventRow: React.FC<{ event: PublicEvent; onOpen: () => void }> = ({ event,
       </span>
       <h3 className="text-lg font-bold leading-snug text-slate-950">{event.title}</h3>
       <p className="mt-2 flex items-start gap-2 text-base leading-relaxed text-slate-600">
-        <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-[#007F8C]" aria-hidden="true" />
+        <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-[#0766f5]" aria-hidden="true" />
         <span>{event.location}</span>
       </p>
       {event.responsibleName && (
         <p className="mt-2 flex items-start gap-2 text-base leading-relaxed text-slate-600">
-          <UserRound className="mt-0.5 h-5 w-5 shrink-0 text-[#007F8C]" aria-hidden="true" />
+          <UserRound className="mt-0.5 h-5 w-5 shrink-0 text-[#0766f5]" aria-hidden="true" />
           <span>Responsable: <strong className="text-slate-800">{event.responsibleName}</strong>{event.organization ? ` · ${event.organization}` : ''}</span>
         </p>
       )}
     </div>
-    <button
-      type="button"
-      onClick={onOpen}
-      className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#004a7f] px-4 text-base font-bold text-white transition hover:bg-[#003865]"
-      aria-label={`Ver ficha completa de ${event.title}`}
-    >
-      Ver ficha completa
-    </button>
-  </article>
+    <ChevronRight className="event-row-arrow" size={20} aria-hidden="true" />
+  </button>
 );
 
 const AgendaEventDetail: React.FC<{ event: PublicEvent; onClose: () => void }> = ({ event, onClose }) => {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const [shareStatus, setShareStatus] = useState('');
 
   useEffect(() => {
     const previousFocus = document.activeElement as HTMLElement | null;
     dialogRef.current?.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     const handleKeyDown = (keyboardEvent: KeyboardEvent) => {
       if (keyboardEvent.key === 'Escape') onClose();
+      if (keyboardEvent.key === 'Tab') {
+        const focusable = dialogRef.current?.querySelectorAll<HTMLElement>('button, a[href], input, select, textarea, [tabindex="0"]');
+        if (!focusable?.length) { keyboardEvent.preventDefault(); return; }
+        const first = focusable[0]; const last = focusable[focusable.length - 1];
+        if (keyboardEvent.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) { keyboardEvent.preventDefault(); last.focus(); }
+        else if (!keyboardEvent.shiftKey && (document.activeElement === last || document.activeElement === dialogRef.current)) { keyboardEvent.preventDefault(); first.focus(); }
+      }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = previousOverflow;
       previousFocus?.focus();
     };
   }, [onClose]);
@@ -954,7 +855,7 @@ const AgendaEventDetail: React.FC<{ event: PublicEvent; onClose: () => void }> =
               {event.source === 'reservation' ? 'Espacio ocupado · Confirmado' : 'Publicado en EntradaNet'}
             </span>
             <h2 id="event-detail-title" className="mt-3 text-2xl font-bold leading-tight text-slate-950 sm:text-3xl">{event.title}</h2>
-            {event.activityTypeLabel && <p className="mt-2 text-base font-semibold text-[#007F8C]">{event.activityTypeLabel}</p>}
+            {event.activityTypeLabel && <p className="mt-2 text-base font-semibold text-[#0766f5]">{event.activityTypeLabel}</p>}
           </div>
           <button
             type="button"
@@ -988,21 +889,21 @@ const AgendaEventDetail: React.FC<{ event: PublicEvent; onClose: () => void }> =
         <dl className="mt-6 grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl border border-slate-200 p-4">
             <dt className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-500">
-              <CalendarDays className="h-5 w-5 text-[#007F8C]" aria-hidden="true" />
+              <CalendarDays className="h-5 w-5 text-[#0766f5]" aria-hidden="true" />
               Fecha
             </dt>
             <dd className="mt-2 text-base font-bold text-slate-950">{dateLabel}</dd>
           </div>
           <div className="rounded-2xl border border-slate-200 p-4">
             <dt className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-500">
-              <Clock3 className="h-5 w-5 text-[#007F8C]" aria-hidden="true" />
+              <Clock3 className="h-5 w-5 text-[#0766f5]" aria-hidden="true" />
               Horario
             </dt>
             <dd className="mt-2 text-base font-bold text-slate-950">{timeLabel}</dd>
           </div>
           <div className="rounded-2xl border border-slate-200 p-4 sm:col-span-2">
             <dt className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-500">
-              <Building2 className="h-5 w-5 text-[#007F8C]" aria-hidden="true" />
+              <Building2 className="h-5 w-5 text-[#0766f5]" aria-hidden="true" />
               Espacio
             </dt>
             <dd className="mt-2 text-base font-bold text-slate-950">{event.location}</dd>
@@ -1010,7 +911,7 @@ const AgendaEventDetail: React.FC<{ event: PublicEvent; onClose: () => void }> =
           {event.responsibleName && (
             <div className="rounded-2xl border border-slate-200 p-4">
               <dt className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-500">
-                <UserRound className="h-5 w-5 text-[#007F8C]" aria-hidden="true" />
+                <UserRound className="h-5 w-5 text-[#0766f5]" aria-hidden="true" />
                 Responsable
               </dt>
               <dd className="mt-2 text-base font-bold text-slate-950">{event.responsibleName}</dd>
@@ -1020,7 +921,7 @@ const AgendaEventDetail: React.FC<{ event: PublicEvent; onClose: () => void }> =
           {event.expectedAttendance && (
             <div className="rounded-2xl border border-slate-200 p-4">
               <dt className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-500">
-                <UsersRound className="h-5 w-5 text-[#007F8C]" aria-hidden="true" />
+                <UsersRound className="h-5 w-5 text-[#0766f5]" aria-hidden="true" />
                 Asistencia estimada
               </dt>
               <dd className="mt-2 text-base font-bold text-slate-950">{event.expectedAttendance} personas</dd>
@@ -1034,7 +935,13 @@ const AgendaEventDetail: React.FC<{ event: PublicEvent; onClose: () => void }> =
           </p>
         )}
 
+        {shareStatus && <p className="mt-4 whitespace-pre-wrap rounded-xl bg-blue-50 p-3 text-blue-900" role="status">{shareStatus}</p>}
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <button type="button" className="secondary-button" onClick={async () => {
+            const text = [event.title, dateLabel, timeLabel, event.location, event.description, event.link].filter(Boolean).join('\n');
+            try { if (navigator.share) await navigator.share({ title: event.title, text }); else { await navigator.clipboard.writeText(text); setShareStatus('Información copiada. Ya podés compartirla.'); } }
+            catch (error) { if ((error as Error).name !== 'AbortError') setShareStatus('Podés copiar esta información para compartirla:\n' + text); }
+          }}><Share2 size={18} aria-hidden="true" />Compartir</button>
           <button
             type="button"
             onClick={onClose}
@@ -1045,7 +952,7 @@ const AgendaEventDetail: React.FC<{ event: PublicEvent; onClose: () => void }> =
           {event.link && (
             <a
               href={event.link}
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#004a7f] px-6 text-base font-bold text-white hover:bg-[#003865]"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#0766f5] px-6 text-base font-bold text-white hover:bg-[#0655cf]"
             >
               Ver entradas en EntradaNet
               <ExternalLink className="h-4 w-4" aria-hidden="true" />

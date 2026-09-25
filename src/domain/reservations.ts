@@ -57,7 +57,7 @@ export interface PublicReservation {
   organization?: string;
   expectedAttendance?: number;
   createdAt: string;
-  status: 'confirmed';
+  status: 'confirmed' | 'pending' | 'rejected';
 }
 
 export interface StoredReservation extends PublicReservation {
