@@ -42,7 +42,7 @@ export function AppShell({ activeView, onNavigate, children }: { activeView: Mai
         <nav className="sidebar-nav" aria-label="Funciones principales">
           {visibleNavigation.map(({ view, label, icon: Icon }) => <a key={view} href={VIEW_HASHES[view]} onClick={(event) => { event.preventDefault(); navigate(view); }} aria-current={activeView === view ? 'page' : undefined} className={view === 'reserve' ? 'nav-create' : ''}><Icon size={21} aria-hidden="true" /><span>{label}</span>{activeView === view && <ChevronRight size={16} aria-hidden="true" />}</a>)}
         </nav>
-        <div className="sidebar-bottom">
+        <div className="sidebar-bottom"><a href="#portada" className="public-return">← Sitio del Virla</a>
           <p className="culture-note">La cultura también<br />organiza el futuro.</p>
           <div className="sidebar-contact"><MapPin size={17} aria-hidden="true" /><span>25 de Mayo 265<br />San Miguel de Tucumán</span></div>
           <a href="tel:+543814221692" className="sidebar-contact"><Phone size={17} aria-hidden="true" />(381) 422-1692</a>
@@ -53,7 +53,7 @@ export function AppShell({ activeView, onNavigate, children }: { activeView: Mai
         <header className="app-topbar">
           <a href="#inicio" className="mobile-brand" aria-label="Virla, ir al inicio" onClick={(event) => { event.preventDefault(); navigate('home'); }}><img src="/logo-virla.png" alt="VIRLA" /></a>
           <div className="topbar-location"><span>Mi Virla</span><ChevronRight size={16} aria-hidden="true" /><strong>{current?.label || 'Virla'}</strong></div>
-          <div className="topbar-actions"><span className="topbar-date">{new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}</span><a href={ENTRADANET_BASE_URL} className="tickets-link">Entradas<ArrowUpRight size={17} aria-hidden="true" /></a></div>
+          <div className="topbar-actions"><a className="public-mobile-return" href="#portada">Sitio Virla</a><span className="topbar-date">{new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}</span><a href={ENTRADANET_BASE_URL} className="tickets-link">Entradas<ArrowUpRight size={17} aria-hidden="true" /></a></div>
         </header>
         <TeamControls view={activeView} onNavigate={navigate} />
         <main id="main-content" tabIndex={-1} className="app-main">{children}</main>

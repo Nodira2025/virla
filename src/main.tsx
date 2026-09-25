@@ -1,13 +1,13 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import App from './App.tsx'
+import { Portal } from './Portal'
 import { AuthProvider } from './context/AuthContext'
-import { AuthGate } from './components/LoginView'
 import './components/TeamWorkspace.css'
+import './institutional.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthProvider><AuthGate><App /></AuthGate></AuthProvider>
+    <AuthProvider><Portal /></AuthProvider>
   </StrictMode>,
 )
